@@ -167,8 +167,11 @@ takumi 支持 Grid/Flex/block/inline/float、`::before`/`::after`、mask/clip-pa
 - **M0 — 选型验证** ✅ **过关**(2026-08-11)
   样张零豆腐块,冷启动 33.9 ms,单张 7.0 / 13.6 ms,RSS 188.8 MiB。结论进 §4.1/§4.3/§4.4/§4.5,样张在 `samples/`,复现:`pnpm fonts && pnpm bench`。
 
-- **M1 — 服务骨架**
-  Hono + Bearer key + 签名校验 + 磁盘/Redis 双层缓存 + single-flight + p-queue 背压 + `/health`。渲染先接一个模板。
+- **M1 — 服务骨架** ✅ **可跑**(2026-08-11)
+  Hono + per-site key + HMAC 签名校验 + 磁盘/Redis 双层缓存 + single-flight + p-queue 背压 + `/health`,接了 `work` 一个模板。实测:12 个并发打同一个 key 只渲染 1 次;并发 1 / 队列上限 2 下打 40 个不同 key 得到 4×200 + 36×429(不排队到超时)。
+  两条落地时改了原计划的地方:
+  - **Redis 做成可选**。`REDIS_URL` 留空则只有磁盘层,TTL 退化为看文件 mtime,LRU 记账关掉。本地开发不该被一个 Redis 绑死。
+  - **签名 URL 里不带 site id**,校验时对每把 key 各算一次 HMAC(常量时间比较)。站点是个位数,这比把 site id 塞进 URL 契约便宜。同一把 secret 既是 HMAC key 也是 POST 的 Bearer token。
 
 - **M2 — 模板全套 + 预览页**
   §5 七个模板;附一个 `/preview` 开发页(任意填字段实时看图),这是模板迭代效率的关键。

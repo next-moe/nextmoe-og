@@ -2,7 +2,7 @@
 
 NextMoe 生态统一的 **Open Graph 分享图渲染服务**。给定模板名与一组字段，返回一张 1200×630 的社交分享图；缓存优先，无浏览器。
 
-> **状态:未动工。** 本仓目前只有设计与计划(见 [PLAN.md](./PLAN.md))。代码尚未开始。
+> **状态:M0 选型验证过关,M1 服务骨架可跑。** 现在有一个能起、能签名、能出图、能缓存的服务,接了 `work` 一个模板。剩下七个模板与预览页是 M2。决策记录见 [PLAN.md](./PLAN.md)。
 
 ## 一句话
 
@@ -40,6 +40,34 @@ NextMoe 生态统一的 **Open Graph 分享图渲染服务**。给定模板名�
 | Vue + Vite SPA | kungal 论坛 |
 
 其余站点是否接入,等这四个跑稳之后再单独议——不预设、不预留。
+
+## 本地跑一次
+
+```bash
+pnpm install
+pnpm fonts                       # 拉 28 MiB Noto 字体到 assets/fonts/,不入库
+cp .env.example .env             # 至少改掉 OG_SITE_KEYS
+pnpm dev
+```
+
+Redis 不是必需的:`REDIS_URL` 留空就只走磁盘层,本地不用起 Redis。
+
+调一次(签名 URL 就是各站写进 `<meta>` 的那条):
+
+```bash
+URL=$(pnpm -s sign work devsecret '{"title":"素晴らしき日々〜不連続存在〜","originalName":"Subarashiki Hibi","cover":"https://example.com/cover.webp","label":"ケロQ","releaseDate":"2010-03-26","badges":["ADV","18+"]}')
+curl -s -o card.webp -D - "$URL"     # 首次 X-Cache: MISS,再来一次 HIT
+```
+
+预热 / 本地预览走 POST(Bearer 就是同一把 per-site key):
+
+```bash
+curl -X POST -H 'authorization: Bearer devsecret' -H 'content-type: application/json' \
+  -d '{"title":"終ノ空","badges":["ADV"]}' \
+  http://127.0.0.1:3300/v1/og/work -o card.webp
+```
+
+`GET /health` 报渲染器、Redis、队列深度与在飞数。
 
 ## 相关
 
