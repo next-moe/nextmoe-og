@@ -7,7 +7,7 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3300),
 
   OG_SITE_KEYS: z.string().default(''),
-  OG_BRAND: z.string().default('nextmoe'),
+  OG_BRAND: z.string().default('NextMoe·未萌'),
 
   FONT_DIR: z.string().default('assets/fonts'),
 
