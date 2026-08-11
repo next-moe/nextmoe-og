@@ -69,18 +69,32 @@ GET /v1/og/<template>?d=<base64url(json)>&sig=<hmac>
 
 OG 卡片是**可再生的派生物**。进 infra 的 `image_service` 意味着要占一个 preset、进 `imagerefs` 全集、被 `catalog-image-refping` 每天喂一遍才不被 GC 吃掉——用永久字节存储装一个随时能重算的东西,还把 GC 全集撑大。自带缓存即可。
 
-## 4. 已知风险与待验事项(动工前必须实测)
+## 4. 已知风险与待验事项(M0 实测结论,2026-08-11)
 
-### 4.1 CJK 字体 —— 本设计最大的未知数
+**M0 结论:选型过关。** 样张零豆腐块,冷启动 34 ms,暖渲染 7–14 ms。样张见 `samples/`,复现脚本 `scripts/m0-bench.ts`(`pnpm fonts && pnpm bench`)。
 
-takumi **从不读系统字体**,`@takumi-rs/core` 只内置 Geist(Latin,400–800),缺字形直接渲染成豆腐块。而我们的卡片主体正是日文作品名与中文标题。官方文档声明支持 CJK / RTL / emoji,但**字体字节要我们自己带**。
+### 4.1 CJK 字体 —— 已定档
 
-要定的:
-- Noto Sans CJK 全量(几十 MB,吃冷启动与常驻内存) vs 按常用区段子集化
-- 日文与简中的字形取舍(同一码位字形不同;若两套都带,体积翻倍)
-- emoji 是否单独带 Noto Color Emoji
+takumi **从不读系统字体**,`@takumi-rs/core` 只内置 Geist(Latin,400–800),缺字形直接渲染成豆腐块。字体字节要我们自己带。
 
-**验收物:一张实测样张**,内容取真实脏数据——含旧字体/异体字的日文作品名、罗马数字、`♥`/`★`、全角括号、超长标题截断。豆腐块出现即选型不过关。
+定下来的方案:**Google Fonts 上游的三个可变字重字体(variable `wght`),全量不子集化。**
+
+| 文件 | 体积 | 家族名 |
+|---|---|---|
+| `NotoSans[wdth,wght].ttf` | 2.0 MiB | `NextMoe Sans`(拉丁/希腊/西里尔) |
+| `NotoSansJP[wght].ttf` | 9.1 MiB | `NextMoe JP` |
+| `NotoSansSC[wght].ttf` | 16.9 MiB | `NextMoe SC` |
+| 合计 | **28.0 MiB** | |
+
+实测要点:
+
+- **可变字重可用**。三个文件各只 `registerFont` 一次(声明 `weight: 400`),CSS 里写 `font-weight: 700` 引擎会走 `wght` 轴,真出粗体——不需要为每个字重单独带一个静态字重文件。这直接砍掉一半体积。
+- **不子集化**。28 MiB 全量的冷启动是 34 ms、RSS 189 MiB;子集化省下的那点内存不值得引入"某个冷门异体字没在子集里 → 线上豆腐块"的长尾故障。子集化留给内存吃紧时再谈。
+- **日中字形靠 font-family 顺序分流,不靠码位**。字体栈是有序 fallback:日文原名用 `'NextMoe Sans','NextMoe JP','NextMoe SC'`,中文标题用 `'NextMoe Sans','NextMoe SC','NextMoe JP'`。同码位不同字形的取舍因此是**模板按字段决定**的,不是全局一刀切。
+- **emoji 用 `emoji: 'from-font'`**。takumi 默认 `emoji: 'twemoji'`,会把 emoji 抠出来去 CDN 拉 PNG——等于给每次渲染加一个外网依赖。`♥ ★ ☆ ♪ ※ → Ⅰ–Ⅴ` 这些符号 Noto 自带,不需要 Noto Color Emoji。真要彩色 emoji 再单独议。
+- 字体不入库(28 MiB),`.gitignore` 挡掉 `assets/fonts/*.ttf`,`pnpm fonts` 从 `google/fonts` 仓拉。
+
+**样张 `samples/m0-dirty-data.png` 零豆腐块**:「白昼夢の青写真」「サクラノ詩 −櫻ノ森ノ上ヲ舞フ−」「終ノ空」、简繁同句对照、`Ⅰ Ⅱ Ⅲ Ⅳ Ⅴ ♥ ★ ☆ ♪ ※ →`、`(全角)「引用」【标签】〜〜` 全部正常。
 
 ### 4.2 CSS 是子集,不是浏览器
 
@@ -90,13 +104,45 @@ takumi 支持 Grid/Flex/block/inline/float、`::before`/`::after`、mask/clip-pa
 
 > 生态铁律照旧适用:**任何 UI 不得使用渐变背景**,颜色只用项目色板。卡片模板同样受此约束(锥形渐变支持与否不影响这条——我们本来就不用)。
 
-### 4.3 远程图片
+### 4.3 远程图片 —— 引擎会自己拉,但**必须夺回来自己拉**
 
-封面/立绘来自我们自己的图床 CDN。要验:takumi 侧的远程图加载方式(是否需要调用方预取字节)、超时与失败降级(取不到封面时退化成纯文字卡,而不是整张渲染失败)。
+实测:`takumi-js` 的 `render()` 走 `prepareImages()`,**自己扫节点树里的 `<img src="http…">` 并用 `globalThis.fetch` 拉字节**,调用方什么都不用做。远程封面确实画进去了(`samples/m0-work-remote-cover.png`)。
 
-### 4.4 性能与并发
+但这条路对生产不能用,原因是**失败行为**:
 
-无浏览器意味着基线远好于 Playwright,但仍需实测:冷启动(含字体加载)、单张渲染耗时、常驻内存。并发用 p-queue 背压,超出直接 429 而不是排队到超时。
+- `render()` 内部调 `prepareImages` 时**没有把 `throwOnError` 透出来**,而它默认是 `true`。所以封面 404 / DNS 挂 / CDN 超时 = **整张渲染抛异常**(实测抛 `fetch failed`),正好踩中 §4.3 最想避免的那件事。
+- 那次远程拉图给首帧加了 **7.0 s**(picsum 慢),而渲染本身只要 7 ms。图片 I/O 必须在我们自己的超时控制下。
+
+所以定成:**调用方(本服务)预取封面字节,把 `images: [{src, data}]` 喂给渲染器**,渲染器只做排版。降级路径两级:
+
+1. 预取失败 → 模板不生成 `<img>`,直接换成纯文字占位块(`samples/m0-work-text-only.png`)。
+2. 万一漏网(节点里留了个拉不到的 `src`)→ 实测 takumi 不报错,画一个空盒子(`samples/m0-work-cover-failed.png`)。丑,但不炸。
+
+**整张渲染永远不因为图片失败而失败。**
+
+### 4.4 性能与并发 —— 实测
+
+机器:本地开发机,Node 24,`@takumi-rs/core` 2.7.1 native(linux-x64-gnu)。
+
+| 指标 | 实测 |
+|---|---|
+| 冷启动(native 模块 import) | 17.4 ms |
+| 冷启动(Renderer + 28 MiB 字体注册) | 16.5 ms |
+| **冷启动合计** | **33.9 ms** |
+| 单张渲染(纯文字卡,10 张均值) | **7.0 ms** |
+| 单张渲染(带已预取封面,10 张均值) | **13.6 ms** |
+| **常驻内存 RSS**(字体常驻 + 渲染完成后) | **188.8 MiB** |
+
+对比参照:`kun-website-screenshot` 的 Playwright 基底光镜像就 ~1.5 G,冷启动以秒计。**takumi 的冷启动比它快两个数量级**,这条选型理由成立。
+
+输出格式:同一张卡 PNG 530 KB / WebP q88 **33 KB**。默认出 WebP,PNG 按需。
+
+并发仍用 p-queue 背压,超出直接 429 而不是排队到超时。
+
+### 4.5 CSS 踩过的坑
+
+- `display: -webkit-box` **不支持,直接抛 `InvalidArg`**。多行截断要写标准的 `line-clamp: 2; overflow: hidden; text-overflow: ellipsis`(无前缀,不需要配 `display`),实测正常出省略号。
+- 单行截断 `white-space: nowrap; overflow: hidden; text-overflow: ellipsis` 正常。
 
 ## 5. 模板清单(首批)
 
@@ -118,8 +164,8 @@ takumi 支持 Grid/Flex/block/inline/float、`::before`/`::after`、mask/clip-pa
 
 ## 6. 里程碑
 
-- **M0 — 选型验证(本仓第一件事)**
-  takumi 起一个最小 Node 脚本,渲染 §4.1 的脏数据样张 + 一张带远程封面的 `work` 卡片。产出:样张图 + 冷启动/单张耗时/内存三个数字 + 字体方案定档。**不过关就在这里止损,不写服务。**
+- **M0 — 选型验证** ✅ **过关**(2026-08-11)
+  样张零豆腐块,冷启动 33.9 ms,单张 7.0 / 13.6 ms,RSS 188.8 MiB。结论进 §4.1/§4.3/§4.4/§4.5,样张在 `samples/`,复现:`pnpm fonts && pnpm bench`。
 
 - **M1 — 服务骨架**
   Hono + Bearer key + 签名校验 + 磁盘/Redis 双层缓存 + single-flight + p-queue 背压 + `/health`。渲染先接一个模板。

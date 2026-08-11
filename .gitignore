@@ -3,6 +3,11 @@ dist/
 .env
 .env.*
 !.env.example
-cache/
+/cache/
 *.log
 .DS_Store
+
+# Font bytes are ~30 MiB; `pnpm fonts` fetches them.
+assets/fonts/*.ttf
+assets/fonts/*.otf
+assets/fonts/*.woff2
