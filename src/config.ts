@@ -28,6 +28,10 @@ const EnvSchema = z.object({
     .int()
     .positive()
     .default(8 * 1024 * 1024),
+  ALLOW_PRIVATE_HOSTS: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
 });
 
 const parsed = EnvSchema.parse(process.env);

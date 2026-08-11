@@ -1,0 +1,35 @@
+# Local dev — builds the image and brings up a throwaway Redis alongside it.
+# Prod uses docker-compose.prod.yml (GHCR image, shared infra, Traefik).
+name: nextmoe-og
+
+services:
+  og:
+    build: .
+    ports:
+      - '3300:3300'
+    environment:
+      NODE_ENV: development
+      LOG_LEVEL: debug
+      PORT: '3300'
+      OG_SITE_KEYS: patch:dev-key,letmoe:dev-key,forum:dev-key,infra:dev-key
+      REDIS_URL: redis://redis:6379
+      CACHE_DIR: /data/cache
+      ALLOW_PRIVATE_HOSTS: 'false'
+    volumes:
+      - cache:/data/cache
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  cache:

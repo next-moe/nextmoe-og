@@ -1,0 +1,64 @@
+# Production compose — Dokploy pulls the CI-built GHCR image (no build on prod).
+#
+# Unlike the sibling screenshot service, this one IS publicly reachable: the URLs
+# live in <meta property="og:image"> tags, so Facebook / Twitter / Telegram crawlers
+# must be able to GET them. Traefik terminates TLS for og.nextmoe.dev; the HMAC
+# signature (not the network) is what stops third parties rendering arbitrary cards.
+#
+# Set in this app's Dokploy Environment panel:
+#   OG_SITE_KEYS   (required — empty means every signed GET 503s)
+#   REDIS_URL      (optional — defaults to redis://redis:6379 on dokploy-network)
+#
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
+name: nextmoe-og
+
+services:
+  og:
+    # CI rewrites this tag to the immutable :<git-sha> on every build (the `bump` job in
+    # .github/workflows/build.yml). Dokploy runs `up -d` without a forced pull, so a moving
+    # :latest that already exists locally is never re-pulled. Don't hand-edit the tag.
+    image: ghcr.io/kunmoe/nextmoe-og:latest
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+      PORT: '3300'
+      # SECRET — set in the Dokploy Environment panel, never commit.
+      OG_SITE_KEYS: ${OG_SITE_KEYS:?set OG_SITE_KEYS in the Dokploy Environment panel}
+      OG_BRAND: NextMoe·未萌
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      CACHE_DIR: /data/cache
+      CACHE_MAX_MB: '5120'
+      CACHE_TTL_DAYS: '30'
+      RENDER_CONCURRENCY: '4'
+      RENDER_QUEUE_MAX: '64'
+      ALLOW_PRIVATE_HOSTS: 'false'
+    expose:
+      - '3300'
+    volumes:
+      - og-cache:/data/cache
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3300/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.nextmoe-og.rule=Host(`og.nextmoe.dev`)
+      - traefik.http.routers.nextmoe-og.entrypoints=websecure
+      - traefik.http.routers.nextmoe-og.tls.certresolver=letsencrypt
+      - traefik.http.services.nextmoe-og.loadbalancer.server.port=3300
+
+volumes:
+  og-cache:
+
+networks:
+  default:
+    name: dokploy-network
+    external: true

@@ -1,0 +1,103 @@
+# Test → build image → pin prod compose to the immutable :sha → push to GHCR →
+# trigger a Dokploy redeploy.
+#
+# Why pin :sha (not deploy :latest): Dokploy runs `compose up -d` without a forced
+# pull, so a moving :latest tag that already exists locally is NOT re-pulled — the
+# deploy reports "done" but reuses the stale image. Rewriting the prod compose to a
+# new :${sha} every build changes the image reference, so `up` must pull + recreate.
+name: build-and-push
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test: # no fonts needed — the unit tests never boot the renderer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Use latest Corepack (reliable pnpm provisioning)
+        run: |
+          npm install -g corepack@latest
+          corepack enable
+          pnpm --version
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm typecheck
+      - run: pnpm test
+
+  build:
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ghcr.io/kunmoe/nextmoe-og:latest
+            ghcr.io/kunmoe/nextmoe-og:${{ github.sha }}
+          cache-from: type=gha,scope=nextmoe-og
+          cache-to: type=gha,mode=max,scope=nextmoe-og
+
+  bump:
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Pin docker-compose.prod.yml image to the image just built
+        run: |
+          sed -i "s|image: ghcr.io/kunmoe/nextmoe-og:.*|image: ghcr.io/kunmoe/nextmoe-og:${GITHUB_SHA}|" docker-compose.prod.yml
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docker-compose.prod.yml
+          if git diff --cached --quiet; then
+            echo "compose already pinned to ${GITHUB_SHA}; nothing to bump."
+          else
+            git commit -m "chore: pin prod image to ${GITHUB_SHA} [skip ci]"
+            git push origin HEAD:main
+          fi
+
+  deploy:
+    needs: bump
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Dokploy redeploy
+        env:
+          WEBHOOK: ${{ secrets.DOKPLOY_WEBHOOK_OG }}
+        run: |
+          if [ -z "$WEBHOOK" ]; then
+            echo "DOKPLOY_WEBHOOK_OG not set — image pushed to GHCR, skipping redeploy trigger."
+            exit 0
+          fi
+          curl -fsS -X POST "$WEBHOOK"

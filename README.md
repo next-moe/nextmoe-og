@@ -2,7 +2,7 @@
 
 NextMoe 生态统一的 **Open Graph 分享图渲染服务**。给定模板名与一组字段，返回一张 1200×630 的社交分享图；缓存优先，无浏览器。
 
-> **状态:M0 / M1 / M2 完成。** 服务能起、能签名、能出图、能缓存,七个模板全在,带一个 `/preview` 开发页。剩下接入四站(M3)与部署(M4)。决策记录见 [PLAN.md](./PLAN.md)。
+> **状态:M0 / M1 / M2 完成,M4 就绪待部署。** 服务能起、能签名、能出图、能缓存,七个模板全在,带一个 `/preview` 开发页;镜像、compose、CI 与 SSRF 防护已就位,域名定为 `og.nextmoe.dev`。剩下接入四站(M3)。决策记录见 [PLAN.md](./PLAN.md)。
 
 ## 一句话
 
@@ -86,6 +86,38 @@ curl -X POST -H 'authorization: Bearer devsecret' -H 'content-type: application/
 `pnpm dev` 起来后开 <http://127.0.0.1:3300/preview>:选模板、改 JSON、⌘/Ctrl+Enter 重渲。这页**只在 `NODE_ENV !== 'production'` 挂载**,它不校验签名。
 
 卡片长什么样由**接入站决定**——要换样子就加模板或改自己那个模板,不必迁就现有的。约束只有 CLAUDE.md 里那三条铁律。
+
+## 远程图片与 SSRF
+
+封面 URL 由调用方给,所以每一条都要过 `src/security/ssrf.ts`:只放行 http(s),主机名解析后落在私有 / 回环 / 链路本地 / 保留段的一律拒绝,**重定向每一跳都重新检查**(`redirect: 'manual'` 手动跟,最多 3 跳)。拒绝不会让渲染失败——那张图退成字母块,卡片照出。
+
+`ALLOW_PRIVATE_HOSTS=true` 是本地开发才用的逃生门(比如图片服务跑在 localhost),生产永远 false。
+
+预检不能把 socket 真正连上的那个 IP 钉死,所以理论上还留着 DNS rebinding 的窗口。这里不像截图服务那样上 egress proxy:响应字节从不回给调用方,只被画进一张卡,收益配不上那套复杂度。
+
+## 部署
+
+Dokploy,和生态里其它服务一致:CI 出镜像推 GHCR → 把 `docker-compose.prod.yml` 的 tag 钉到这次的 `:<sha>` → 触发 Dokploy 重拉。域名 **`og.nextmoe.dev`**,Traefik 终止 TLS。
+
+```bash
+docker compose up -d --build                      # 本地:带一个一次性 Redis
+docker compose -f docker-compose.prod.yml pull     # 生产:Dokploy 侧
+docker compose -f docker-compose.prod.yml up -d
+```
+
+这个服务和截图服务不同,它**必须对公网开放**——URL 写在 `og:image` 里,Facebook / Twitter / Telegram 的爬虫要能 GET 到。挡住乱用的是 HMAC 签名,不是网络。
+
+Dokploy Environment 面板里要设的只有 `OG_SITE_KEYS`(留空则每个签名 GET 都 503),`REDIS_URL` 不设就走同网络的 `redis:6379`。GitHub 侧要一个 `DOKPLOY_WEBHOOK_OG` secret,没有就只推镜像不触发部署。
+
+镜像 694 MB、无浏览器,冷启动到 `/health` 就绪约 1 秒(28 MiB 字体在 build 阶段就烤进去了,启动不联网)。
+
+## 测试
+
+```bash
+pnpm test
+```
+
+`vitest`,52 条,不起渲染器也不联网:签名(伪造 / 篡改 / 截断)、payload 编解码与缓存 key 稳定性、SSRF 判定(含 `::ffff:` 映射伪装与"多条 A 记录里有一条私有")、以及七个模板各自的 sample 能过 schema、尺寸、角标恰好一次、无渐变、**预取没成功就绝不吐 `<img>`**。
 
 ## 相关
 

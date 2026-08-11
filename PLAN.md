@@ -183,8 +183,18 @@ takumi 支持 Grid/Flex/block/inline/float、`::before`/`::after`、mask/clip-pa
 - **M3 — 接入四站**
   letmoe(Nuxt SSR)+ patch(Nuxt SSR)+ kungal 论坛(Vue SPA,meta 需由后端注入——最难的一种形态,先啃)+ infra 管理控制台。各站提供一个 `buildOgUrl()` 小工具函数,不引 SDK。
 
-- **M4 — 部署**
-  Dokploy compose、域名 `og.nextmoe.dev`(已定)、per-site key 下发、缓存盘容量与 LRU 上限定档。范围到此为止;是否再接别的站是**另一次决策**,不在本计划内。
+- **M4 — 部署** ✅ **就绪**(2026-08-11,待用户按下部署)
+  `Dockerfile` + `docker-compose.yml`(本地,带一次性 Redis)+ `docker-compose.prod.yml`(Dokploy,GHCR 镜像,Traefik 接 `og.nextmoe.dev`)+ `.github/workflows/build.yml`(test → build → 把 prod compose 钉到 `:<sha>` → 触发 Dokploy webhook),形状照兄弟仓 `kun-website-screenshot`。
+  实测:镜像 694 MB(无浏览器),容器内 `/health` 报 renderer ready、字体 29.4 MB,签名 GET 出 1200×630 WebP(MISS 15 ms → HIT 1 ms),坏签名 403,`/preview` 在 `NODE_ENV=production` 下 404。
+  落地时遇到的一件事:
+  - **`pnpm-workspace.yaml` 必须进依赖层**。它带着 `minimumReleaseAgeExclude`,只 COPY `package.json` + lockfile 时镜像里的 `pnpm install --frozen-lockfile` 会被供应链策略拦下来——本地能装、镜像装不上。
+  - 缓存定档:生产 `CACHE_MAX_MB=5120`、`CACHE_TTL_DAYS=30`、`RENDER_QUEUE_MAX=64`。
+    剩下的是人工动作:Dokploy 面板里下发四把 per-site key、配 `DOKPLOY_WEBHOOK_OG`、把 `og.nextmoe.dev` 指到宿主机。范围到此为止;是否再接别的站是**另一次决策**,不在本计划内。
+
+- **测试与 SSRF 防护** ✅ **完成**(2026-08-11)
+  `vitest` 52 条,不起渲染器、不联网(DNS 打桩):签名的伪造/篡改/截断、payload 编解码与缓存 key 稳定性、SSRF 判定、七个模板的 sample × schema × 尺寸 × 角标恰好一次 × 无渐变 × **预取失败时绝不吐 `<img>`**(这条正是 §4.3 那个坑的回归护栏)。
+  远程图片改走 `src/security/ssrf.ts`:http(s) 白名单 + 私有/回环/链路本地/保留段拒绝 + `::ffff:` 映射解包,并且**重定向手动跟、每跳重查**(`redirect: 'manual'`,≤3 跳)——原来的 `redirect: 'follow'` 等于只查第一跳,一个 302 就能绕到内网。
+  **不上 egress proxy**:预检钉不死 socket 真正连的 IP,DNS rebinding 窗口仍在,但响应字节从不回给调用方(只被画进卡片),收益配不上截图服务那套复杂度。`ALLOW_PRIVATE_HOSTS` 是开发逃生门,生产恒 false。
 
 ## 7. 纪律
 
