@@ -8,10 +8,10 @@
 
 **范围(2026-08-11 定,四个站,不多做):**
 
-| 栈 | 站点 |
-|---|---|
-| Nuxt4 SSR | `kun-galgame-patch`、`kun-letmoe-community`、`kun-galgame-infra/apps/web` |
-| Vue + Vite SPA(无 Nuxt) | `kun-galgame-forum/apps/web` |
+| 栈                      | 站点                                                                      |
+| ----------------------- | ------------------------------------------------------------------------- |
+| Nuxt4 SSR               | `kun-galgame-patch`、`kun-letmoe-community`、`kun-galgame-infra/apps/web` |
+| Vue + Vite SPA(无 Nuxt) | `kun-galgame-forum/apps/web`                                              |
 
 其余站点一律**不在范围内**,也不为它们预留抽象。将来要加,那时再议。
 
@@ -79,12 +79,12 @@ takumi **从不读系统字体**,`@takumi-rs/core` 只内置 Geist(Latin,400–8
 
 定下来的方案:**Google Fonts 上游的三个可变字重字体(variable `wght`),全量不子集化。**
 
-| 文件 | 体积 | 家族名 |
-|---|---|---|
-| `NotoSans[wdth,wght].ttf` | 2.0 MiB | `NextMoe Sans`(拉丁/希腊/西里尔) |
-| `NotoSansJP[wght].ttf` | 9.1 MiB | `NextMoe JP` |
-| `NotoSansSC[wght].ttf` | 16.9 MiB | `NextMoe SC` |
-| 合计 | **28.0 MiB** | |
+| 文件                      | 体积         | 家族名                           |
+| ------------------------- | ------------ | -------------------------------- |
+| `NotoSans[wdth,wght].ttf` | 2.0 MiB      | `NextMoe Sans`(拉丁/希腊/西里尔) |
+| `NotoSansJP[wght].ttf`    | 9.1 MiB      | `NextMoe JP`                     |
+| `NotoSansSC[wght].ttf`    | 16.9 MiB     | `NextMoe SC`                     |
+| 合计                      | **28.0 MiB** |                                  |
 
 实测要点:
 
@@ -124,13 +124,13 @@ takumi 支持 Grid/Flex/block/inline/float、`::before`/`::after`、mask/clip-pa
 
 机器:本地开发机,Node 24,`@takumi-rs/core` 2.7.1 native(linux-x64-gnu)。
 
-| 指标 | 实测 |
-|---|---|
-| 冷启动(native 模块 import) | 17.4 ms |
-| 冷启动(Renderer + 28 MiB 字体注册) | 16.5 ms |
-| **冷启动合计** | **33.9 ms** |
-| 单张渲染(纯文字卡,10 张均值) | **7.0 ms** |
-| 单张渲染(带已预取封面,10 张均值) | **13.6 ms** |
+| 指标                                    | 实测          |
+| --------------------------------------- | ------------- |
+| 冷启动(native 模块 import)              | 17.4 ms       |
+| 冷启动(Renderer + 28 MiB 字体注册)      | 16.5 ms       |
+| **冷启动合计**                          | **33.9 ms**   |
+| 单张渲染(纯文字卡,10 张均值)            | **7.0 ms**    |
+| 单张渲染(带已预取封面,10 张均值)        | **13.6 ms**   |
 | **常驻内存 RSS**(字体常驻 + 渲染完成后) | **188.8 MiB** |
 
 对比参照:`kun-website-screenshot` 的 Playwright 基底光镜像就 ~1.5 G,冷启动以秒计。**takumi 的冷启动比它快两个数量级**,这条选型理由成立。
@@ -148,15 +148,15 @@ takumi 支持 Grid/Flex/block/inline/float、`::before`/`::after`、mask/clip-pa
 
 一张 1200×630 打底;方形/竖版(微信、QQ)按需再议。
 
-| 模板 | 用于 | 关键字段 |
-|---|---|---|
-| `work` | catalog 作品条目页 | 标题、原名、封面、会社、发售日、类型徽章 |
-| `character` | 角色页 | 名字、立绘(已去白底,透明)、所属作品 |
-| `label` | 会社/社团页 | 名称、logo、作品数 |
-| `person` | 人物页 | 名字、照片、代表作 |
-| `topic` | kungal 论坛话题 | 标题、作者头像+名、板块、回复数 |
-| `patch` | moyu patch 页 | 标题、封面、平台徽章 |
-| `site` | 四站首页兜底 | 站名、slogan、站徽 |
+| 模板        | 用于               | 关键字段                                 |
+| ----------- | ------------------ | ---------------------------------------- |
+| `work`      | catalog 作品条目页 | 标题、原名、封面、会社、发售日、类型徽章 |
+| `character` | 角色页             | 名字、立绘(已去白底,透明)、所属作品      |
+| `label`     | 会社/社团页        | 名称、logo、作品数                       |
+| `person`    | 人物页             | 名字、照片、代表作                       |
+| `topic`     | kungal 论坛话题    | 标题、作者头像+名、板块、回复数          |
+| `patch`     | moyu patch 页      | 标题、封面、平台徽章                     |
+| `site`      | 四站首页兜底       | 站名、slogan、站徽                       |
 
 前四个是 catalog 实体页(letmoe / 论坛 / infra 控制台都在渲染同一批实体),`topic` 与 `patch` 各归其站,`site` 是任何页面取不到实体时的兜底。
 
@@ -173,14 +173,18 @@ takumi 支持 Grid/Flex/block/inline/float、`::before`/`::after`、mask/clip-pa
   - **Redis 做成可选**。`REDIS_URL` 留空则只有磁盘层,TTL 退化为看文件 mtime,LRU 记账关掉。本地开发不该被一个 Redis 绑死。
   - **签名 URL 里不带 site id**,校验时对每把 key 各算一次 HMAC(常量时间比较)。站点是个位数,这比把 site id 塞进 URL 契约便宜。同一把 secret 既是 HMAC key 也是 POST 的 Bearer token。
 
-- **M2 — 模板全套 + 预览页**
-  §5 七个模板;附一个 `/preview` 开发页(任意填字段实时看图),这是模板迭代效率的关键。
+- **M2 — 模板全套 + 预览页** ✅ **完成**(2026-08-11)
+  §5 七个模板全部落地(`work` / `character` / `label` / `person` / `topic` / `patch` / `site`),`/preview` 开发页可选模板、改 JSON、实时出图(⌘/Ctrl+Enter 重渲),仅在 `NODE_ENV !== 'production'` 挂载。
+  落地时改了原计划的地方:
+  - **每个模板多带一个 `sample` 字段**。预览页拿它填表单,同时它就是给下游看的字段样例——不另写一份文档。
+  - **加了第三个骨架 `textCard`**。`topic` 与 `site` 没有主图,套 `bannerCard` 会留一块 340px 的空图。
+  - 单张渲染 4–8 ms(冷启动那张 30 ms),PNG 13–32 KB。
 
 - **M3 — 接入四站**
   letmoe(Nuxt SSR)+ patch(Nuxt SSR)+ kungal 论坛(Vue SPA,meta 需由后端注入——最难的一种形态,先啃)+ infra 管理控制台。各站提供一个 `buildOgUrl()` 小工具函数,不引 SDK。
 
 - **M4 — 部署**
-  Dokploy compose、域名(建议 `og.nextmoe.dev`)、per-site key 下发、缓存盘容量与 LRU 上限定档。范围到此为止;是否再接别的站是**另一次决策**,不在本计划内。
+  Dokploy compose、域名 `og.nextmoe.dev`(已定)、per-site key 下发、缓存盘容量与 LRU 上限定档。范围到此为止;是否再接别的站是**另一次决策**,不在本计划内。
 
 ## 7. 纪律
 
@@ -196,6 +200,6 @@ takumi 支持 Grid/Flex/block/inline/float、`::before`/`::after`、mask/clip-pa
 
 ## 8. 待用户拍板
 
-- 域名:`og.nextmoe.dev`?
-- 卡片形态:先只做 1200×630,还是同期出方形给微信/QQ?
+- ~~域名~~:**`og.nextmoe.dev`**(2026-08-11 定)。
+- 卡片形态:先只做 1200×630,还是同期出方形给微信/QQ?**当前按只做 1200×630 推进**——方形是加一组尺寸常量与骨架的事,想做随时补,不预留。
 - 四站的接入顺序(建议 letmoe → patch → 论坛 → infra 控制台)。

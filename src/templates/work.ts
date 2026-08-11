@@ -44,4 +44,11 @@ export const work: Template<WorkFields> = {
     `;
     return splitCard(visualColumn(cover, f.title.slice(0, 1)), body);
   },
+  sample: {
+    title: '素晴らしき日々〜不連続存在〜',
+    originalName: 'Subarashiki Hibi ~Furenzoku Sonzai~',
+    label: 'ケロQ',
+    releaseDate: '2010-03-26',
+    badges: ['ADV', '18+'],
+  },
 };

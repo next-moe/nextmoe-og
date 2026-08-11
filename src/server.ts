@@ -26,6 +26,12 @@ app.use('*', async (c, next) => {
 
 app.route('/health', healthRoutes);
 app.route('/v1/og', ogRoutes);
+
+if (config.NODE_ENV !== 'production') {
+  const { previewRoutes } = await import('./routes/preview');
+  app.route('/preview', previewRoutes);
+  log.info('preview page mounted at /preview');
+}
 app.notFound((c) => c.json({ error: 'not_found' }, 404));
 
 const evictionTimer = setInterval(

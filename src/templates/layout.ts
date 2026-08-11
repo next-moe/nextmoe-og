@@ -47,11 +47,29 @@ export const badgeRow = (items: string[]): string =>
         .map((text, i) => badge(text, accents[i % accents.length] as string))
         .join('')}</div>`;
 
-/** Left visual column: the cover when its bytes arrived, a lettermark block when they did not. */
-export const visualColumn = (src: string | null, fallbackLetter: string, width = 440): string =>
-  src
-    ? `<img src="${escapeHtml(src)}" style="width:${width}px;height:${OG_SIZE.height}px;object-fit:cover" />`
-    : `<div style="width:${width}px;height:${OG_SIZE.height}px;background-color:${palette.surface};display:flex;align-items:center;justify-content:center;font-size:140px;font-weight:700;color:${palette.line}">${escapeHtml(fallbackLetter)}</div>`;
+/**
+ * Left visual column: the cover when its bytes arrived, a lettermark block when they did not.
+ * `fit` is 'contain' for art that must not be cropped — transparent character portraits, logos.
+ */
+export const visualColumn = (
+  src: string | null,
+  fallbackLetter: string,
+  width = 440,
+  fit: 'cover' | 'contain' = 'cover',
+): string => {
+  const frame = `width:${width}px;height:${OG_SIZE.height}px;background-color:${palette.surface};display:flex;align-items:center;justify-content:center`;
+  return src
+    ? `<div style="${frame}"><img src="${escapeHtml(src)}" style="width:${width}px;height:${OG_SIZE.height}px;object-fit:${fit}" /></div>`
+    : `<div style="${frame};font-size:140px;font-weight:700;color:${palette.line}">${escapeHtml(fallbackLetter)}</div>`;
+};
+
+/** Small round portrait for by-lines. Falls back to a lettermark of the same diameter. */
+export const avatar = (src: string | null, fallbackLetter: string, size = 64): string => {
+  const frame = `width:${size}px;height:${size}px;border-radius:9999px;background-color:${palette.surfaceAlt};display:flex;align-items:center;justify-content:center;overflow:hidden`;
+  return src
+    ? `<div style="${frame}"><img src="${escapeHtml(src)}" style="width:${size}px;height:${size}px;object-fit:cover" /></div>`
+    : `<div style="${frame};font-size:${Math.round(size * 0.44)}px;font-weight:700;color:${palette.muted}">${escapeHtml(fallbackLetter)}</div>`;
+};
 
 export const metaBar = (parts: string[]): string =>
   `<div style="height:2px;background-color:${palette.line};margin-bottom:24px"></div>
@@ -81,5 +99,9 @@ export const bannerCard = (background: string | null, body: string): string =>
      }
      <div style="flex:1;display:flex;flex-direction:column;padding:44px 56px">${body}</div>
    </div>`;
+
+/** No visual at all: one padded column. For cards whose subject is text — forum topics, site fallbacks. */
+export const textCard = (body: string): string =>
+  `<div style="width:${OG_SIZE.width}px;height:${OG_SIZE.height}px;background-color:${palette.bg};color:${palette.fg};display:flex;flex-direction:column;padding:64px 72px 48px 72px;align-items:stretch;font-family:${fontStack.sc}">${body}</div>`;
 
 export const spacer = '<div style="flex:1"></div>';

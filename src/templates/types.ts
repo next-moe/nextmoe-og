@@ -16,6 +16,8 @@ export interface Template<F> {
   schema: ZodType<F>;
   images: (fields: F) => string[];
   html: (fields: F, loaded: ReadonlySet<string>) => string;
+  /** Fills the preview form and documents the field shape for the consuming site. */
+  sample: F;
 }
 
 export type AnyTemplate = Template<never>;

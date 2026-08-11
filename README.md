@@ -2,7 +2,7 @@
 
 NextMoe 生态统一的 **Open Graph 分享图渲染服务**。给定模板名与一组字段，返回一张 1200×630 的社交分享图；缓存优先，无浏览器。
 
-> **状态:M0 选型验证过关,M1 服务骨架可跑。** 现在有一个能起、能签名、能出图、能缓存的服务,接了 `work` 一个模板。剩下七个模板与预览页是 M2。决策记录见 [PLAN.md](./PLAN.md)。
+> **状态:M0 / M1 / M2 完成。** 服务能起、能签名、能出图、能缓存,七个模板全在,带一个 `/preview` 开发页。剩下接入四站(M3)与部署(M4)。决策记录见 [PLAN.md](./PLAN.md)。
 
 ## 一句话
 
@@ -20,13 +20,13 @@ NextMoe 生态统一的 **Open Graph 分享图渲染服务**。给定模板名�
 
 ## 技术选型
 
-| 层 | 选型 |
-|---|---|
-| 渲染 | [takumi](https://github.com/kane50613/takumi)(Rust 引擎,JSX/HTML+CSS → 图,**无 headless 浏览器**) |
-| 运行时 | Node + TypeScript,`takumi-js`(Node 上自动走 native `@takumi-rs/core`) |
-| HTTP | Hono + `@hono/node-server` |
-| 缓存 | 磁盘(图片字节)+ Redis(元数据 / LRU) |
-| 鉴权 | `Authorization: Bearer <key>`,per-site key |
+| 层     | 选型                                                                                              |
+| ------ | ------------------------------------------------------------------------------------------------- |
+| 渲染   | [takumi](https://github.com/kane50613/takumi)(Rust 引擎,JSX/HTML+CSS → 图,**无 headless 浏览器**) |
+| 运行时 | Node + TypeScript,`takumi-js`(Node 上自动走 native `@takumi-rs/core`)                             |
+| HTTP   | Hono + `@hono/node-server`                                                                        |
+| 缓存   | 磁盘(图片字节)+ Redis(元数据 / LRU)                                                               |
+| 鉴权   | `Authorization: Bearer <key>`,per-site key                                                        |
 
 骨架照抄兄弟仓 `kun-website-screenshot` 的形状(同类服务、已在产),但**不共用镜像**:那个仓的基底是 `mcr.microsoft.com/playwright`(带 Chromium,~1.5G),而 takumi 的全部卖点就是不要浏览器。
 
@@ -34,10 +34,10 @@ NextMoe 生态统一的 **Open Graph 分享图渲染服务**。给定模板名�
 
 **当前范围就是这四个,不多做。**
 
-| 栈 | 站点 |
-|---|---|
-| Nuxt4 SSR | patch、letmoe、infra 管理控制台 |
-| Vue + Vite SPA | kungal 论坛 |
+| 栈             | 站点                            |
+| -------------- | ------------------------------- |
+| Nuxt4 SSR      | patch、letmoe、infra 管理控制台 |
+| Vue + Vite SPA | kungal 论坛                     |
 
 其余站点是否接入,等这四个跑稳之后再单独议——不预设、不预留。
 
@@ -68,6 +68,24 @@ curl -X POST -H 'authorization: Bearer devsecret' -H 'content-type: application/
 ```
 
 `GET /health` 报渲染器、Redis、队列深度与在飞数。
+
+## 模板与预览页
+
+| 模板        | 用于               | 必填    |
+| ----------- | ------------------ | ------- |
+| `work`      | catalog 作品条目   | `title` |
+| `character` | 角色               | `name`  |
+| `label`     | 会社 / 社团        | `name`  |
+| `person`    | 人物               | `name`  |
+| `topic`     | 论坛话题           | `title` |
+| `patch`     | patch 资源         | `title` |
+| `site`      | 取不到实体时的兜底 | `name`  |
+
+其余字段全是可选的,少给就少画一块,不会报错;远程图拉不到就退成字母块。每个模板的完整字段与一份样例见 `src/templates/<name>.ts` 里的 `schema` 与 `sample`。
+
+`pnpm dev` 起来后开 <http://127.0.0.1:3300/preview>:选模板、改 JSON、⌘/Ctrl+Enter 重渲。这页**只在 `NODE_ENV !== 'production'` 挂载**,它不校验签名。
+
+卡片长什么样由**接入站决定**——要换样子就加模板或改自己那个模板,不必迁就现有的。约束只有 CLAUDE.md 里那三条铁律。
 
 ## 相关
 

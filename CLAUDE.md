@@ -27,7 +27,7 @@ Practically:
 
 - When a site wants a different look, add or extend a template for it. Do not bend every site into one central design, and do not reject a template because it deviates from an existing one.
 - Keep site-specific assumptions out of `src/render/`, `src/cache/`, `src/security/` — those layers must stay template-agnostic. Site flavor lives only under `src/templates/`.
-- What is *not* downstream-customizable: the three iron rules above, the 1200×630 default size, and `escapeHtml` on every interpolated field.
+- What is _not_ downstream-customizable: the three iron rules above, the 1200×630 default size, and `escapeHtml` on every interpolated field.
 - Consumer scope is the four sites in README (patch, letmoe, kungal forum, infra console) — do not add others and do not pre-provision for others.
 
 ## takumi traps (each of these already cost a debugging session)
