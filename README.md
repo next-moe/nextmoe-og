@@ -71,6 +71,8 @@ curl -X POST -H 'authorization: Bearer devsecret' -H 'content-type: application/
 
 ## URL 契约(下游按这个写 buildOgUrl)
 
+> 接入方看这一份就够:[docs/INTEGRATION.md](./docs/INTEGRATION.md)——七个模板的完整字段表、密钥放哪、预热、错误码、以及怎么提反馈。下面是同一份契约的摘要。
+
 ```
 GET /v1/og/<template>?d=<base64url(JSON.stringify(fields))>&sig=<HMAC-SHA256>
 ```
@@ -138,10 +140,11 @@ Dokploy Environment 面板里要设的只有 `OG_SITE_KEYS`(留空则每个签�
 pnpm test
 ```
 
-`vitest`,52 条,不起渲染器也不联网:签名(伪造 / 篡改 / 截断)、payload 编解码与缓存 key 稳定性、SSRF 判定(含 `::ffff:` 映射伪装与"多条 A 记录里有一条私有")、以及七个模板各自的 sample 能过 schema、尺寸、角标恰好一次、无渐变、**预取没成功就绝不吐 `<img>`**。
+`vitest`,71 条,不起渲染器也不联网:签名(伪造 / 篡改 / **跨模板重放**)、payload 编解码与缓存 key 稳定性、SSRF 判定(含 `::ffff:` 映射伪装与"多条 A 记录里有一条私有")、以及七个模板各自的 sample 能过 schema、尺寸、角标恰好一次、无渐变、**预取没成功就绝不吐 `<img>`**。
 
 ## 相关
 
+- 下游接入指南:[docs/INTEGRATION.md](./docs/INTEGRATION.md)
 - 计划与决策记录:[PLAN.md](./PLAN.md)
 - 同类服务先例:`kun-website-screenshot`(自托管截图,Playwright)
 - 图床服务契约:infra 仓 `docs/image_service/`
