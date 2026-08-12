@@ -33,6 +33,10 @@ if (config.NODE_ENV !== 'production') {
   log.info('preview page mounted at /preview');
 }
 app.notFound((c) => c.json({ error: 'not_found' }, 404));
+app.onError((err, c) => {
+  log.error({ err: err.message, path: c.req.path }, 'unhandled route error');
+  return c.json({ error: 'internal' }, 500);
+});
 
 const evictionTimer = setInterval(
   () => {
@@ -45,6 +49,15 @@ const evictionTimer = setInterval(
 );
 evictionTimer.unref?.();
 
+// Boot the renderer before listening. A missing font file is unrecoverable — serving anyway
+// would leave a container that passes its port check and 500s every render.
+try {
+  await renderService.warmup();
+} catch (e) {
+  log.error({ err: (e as Error).message }, 'renderer warmup failed');
+  process.exit(1);
+}
+
 const server = serve({ fetch: app.fetch, hostname: config.HOST, port: config.PORT }, (info) => {
   log.info(
     { host: config.HOST, port: info.port, sites: config.siteKeys.size, redis: cache.redisEnabled },
@@ -52,9 +65,13 @@ const server = serve({ fetch: app.fetch, hostname: config.HOST, port: config.POR
   );
 });
 
-void renderService
-  .warmup()
-  .catch((e: Error) => log.error({ err: e.message }, 'renderer warmup failed'));
+const DRAIN_MS = 15_000;
+const FLUSH_MS = 5_000;
+
+const after = (ms: number): Promise<void> =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms).unref?.();
+  });
 
 let shuttingDown = false;
 const shutdown = async (signal: string): Promise<void> => {
@@ -62,8 +79,14 @@ const shutdown = async (signal: string): Promise<void> => {
   shuttingDown = true;
   log.info({ signal }, 'shutting down');
   clearInterval(evictionTimer);
-  server.close();
-  renderService.shutdown();
+  // The close callback fires only once every connection has ended, so it has to be registered
+  // before the drain: process.exit() does not flush sockets, and the render that finishes last
+  // would otherwise have its response cut off mid-write.
+  const closed = new Promise<void>((resolve) => server.close(() => resolve()));
+  await renderService.drain(DRAIN_MS);
+  // Keep-alive sockets a crawler left open would hold close() forever; only http.Server has this.
+  if ('closeIdleConnections' in server) server.closeIdleConnections();
+  await Promise.race([closed, after(FLUSH_MS)]);
   await cache.close();
   process.exit(0);
 };

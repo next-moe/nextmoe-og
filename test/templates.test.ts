@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { config } from '../src/config';
 import { allTemplates, getTemplate, templateNames } from '../src/templates';
+import { OG_BRAND } from '../src/templates/layout';
 
 const templates = allTemplates();
 
@@ -24,8 +24,8 @@ describe.each(templates.map((t) => [t.name, t] as const))('%s', (_name, t) => {
   it('renders at the default OG size with the wordmark exactly once', () => {
     const html = draw(t, t.sample, t.images(t.sample as never));
     expect(t.size).toEqual({ width: 1200, height: 630 });
-    expect(html.split(config.OG_BRAND)).toHaveLength(2);
-    expect(config.OG_BRAND).toBe('NextMoe·未萌');
+    expect(html.split(OG_BRAND)).toHaveLength(2);
+    expect(OG_BRAND).toBe('NextMoe·未萌');
   });
 
   it('uses no gradient anywhere', () => {

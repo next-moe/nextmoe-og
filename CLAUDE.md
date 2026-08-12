@@ -43,6 +43,7 @@ Practically:
 - `src/server.ts` boot; `src/routes/` HTTP faces; `src/security/signature.ts` HMAC for signed GET; `src/cache/` disk + optional Redis + single-flight; `src/render/` engine, fonts, image pre-fetch; `src/templates/` the cards.
 - A new template = one file in `src/templates/` exporting a `Template<F>` (see `types.ts`), registered in `src/templates/index.ts`. Reuse `layout.ts` skeletons and helpers before inventing new ones.
 - Signed URLs are immutable by construction (cache key = hash of template + payload); there is no invalidation protocol. Never add one — changed data means a changed URL.
+- The HMAC covers `` `${template}\n${d}` ``, not `d` alone — signing only the payload let any card URL be replayed against every other template. Changing the signed message invalidates every URL already embedded in downstream HTML, so treat the format as frozen.
 
 ## Comments
 

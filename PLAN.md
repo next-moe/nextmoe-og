@@ -71,7 +71,7 @@ OG 卡片是**可再生的派生物**。进 infra 的 `image_service` 意味着�
 
 ## 4. 已知风险与待验事项(M0 实测结论,2026-08-11)
 
-**M0 结论:选型过关。** 样张零豆腐块,冷启动 34 ms,暖渲染 7–14 ms。样张见 `samples/`,复现脚本 `scripts/m0-bench.ts`(`pnpm fonts && pnpm bench`)。
+**M0 结论:选型过关。** 样张零豆腐块,冷启动 34 ms,暖渲染 7–14 ms。样张与 `scripts/m0-bench.ts` 已在 M2 后删除:它是 M0 的一次性原型(角标大小写不对、没走 `images` 预取),留着会被当成范本抄。
 
 ### 4.1 CJK 字体 —— 已定档
 
@@ -165,7 +165,7 @@ takumi 支持 Grid/Flex/block/inline/float、`::before`/`::after`、mask/clip-pa
 ## 6. 里程碑
 
 - **M0 — 选型验证** ✅ **过关**(2026-08-11)
-  样张零豆腐块,冷启动 33.9 ms,单张 7.0 / 13.6 ms,RSS 188.8 MiB。结论进 §4.1/§4.3/§4.4/§4.5,样张在 `samples/`,复现:`pnpm fonts && pnpm bench`。
+  样张零豆腐块,冷启动 33.9 ms,单张 7.0 / 13.6 ms,RSS 188.8 MiB。结论进 §4.1/§4.3/§4.4/§4.5。
 
 - **M1 — 服务骨架** ✅ **可跑**(2026-08-11)
   Hono + per-site key + HMAC 签名校验 + 磁盘/Redis 双层缓存 + single-flight + p-queue 背压 + `/health`,接了 `work` 一个模板。实测:12 个并发打同一个 key 只渲染 1 次;并发 1 / 队列上限 2 下打 40 个不同 key 得到 4×200 + 36×429(不排队到超时)。

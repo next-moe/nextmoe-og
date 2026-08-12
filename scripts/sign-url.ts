@@ -1,5 +1,5 @@
 import { encodePayload } from '../src/http/params';
-import { sign } from '../src/security/signature';
+import { sign, signedMessage } from '../src/security/signature';
 
 const [template, secret, json] = process.argv.slice(2);
 
@@ -12,4 +12,5 @@ if (!template || !secret || !json) {
 
 const base = process.argv[5] ?? `http://127.0.0.1:${process.env.PORT ?? 3300}`;
 const d = encodePayload(JSON.parse(json) as unknown);
-console.log(`${base}/v1/og/${template}?d=${d}&sig=${sign(secret, d)}`);
+const sig = sign(secret, signedMessage(template, d));
+console.log(`${base}/v1/og/${template}?d=${d}&sig=${sig}`);

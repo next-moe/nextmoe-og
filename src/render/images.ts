@@ -9,13 +9,38 @@ export interface LoadedImage {
 
 const MAX_REDIRECTS = 3;
 
+/**
+ * content-length is the sender's claim and a chunked response omits it entirely, so the cap
+ * is enforced while reading — arrayBuffer() would already have the whole body in memory by
+ * the time it could be checked, and only the fetch timeout would bound it.
+ */
 const readLimited = async (res: Response): Promise<ArrayBuffer> => {
   const declared = Number(res.headers.get('content-length') ?? '0');
   if (declared > config.IMAGE_MAX_BYTES) throw new Error(`content-length ${declared} too large`);
-  const body = await res.arrayBuffer();
-  if (body.byteLength > config.IMAGE_MAX_BYTES)
-    throw new Error(`body ${body.byteLength} too large`);
-  return body;
+  if (!res.body) throw new Error('response had no body');
+
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > config.IMAGE_MAX_BYTES) throw new Error(`body over ${config.IMAGE_MAX_BYTES}`);
+      chunks.push(value);
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, at);
+    at += chunk.byteLength;
+  }
+  return out.buffer;
 };
 
 /** Redirects are followed by hand so every hop goes through the SSRF check, not just the first. */

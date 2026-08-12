@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { bearerSite, sign, verify } from '../src/security/signature';
+import { bearerSite, sign, signedMessage, verify } from '../src/security/signature';
 
 const payload = 'eyJ0aXRsZSI6IuS4gCJ9';
+const signFor = (secret: string, template: string, d = payload): string =>
+  sign(secret, signedMessage(template, d));
 
 describe('sign', () => {
   it('is deterministic and base64url (no +/= in the alphabet)', () => {
@@ -18,15 +20,27 @@ describe('sign', () => {
 
 describe('verify', () => {
   it('names the site whose key signed it', () => {
-    expect(verify(payload, sign('letmoe-secret', payload))).toBe('letmoe');
-    expect(verify(payload, sign('patch-secret', payload))).toBe('patch');
+    expect(verify('work', payload, signFor('letmoe-secret', 'work'))).toBe('letmoe');
+    expect(verify('work', payload, signFor('patch-secret', 'work'))).toBe('patch');
   });
 
   it('rejects an unknown key, a tampered payload and a truncated signature', () => {
-    expect(verify(payload, sign('outsider', payload))).toBeNull();
-    expect(verify(`${payload}x`, sign('letmoe-secret', payload))).toBeNull();
-    expect(verify(payload, sign('letmoe-secret', payload).slice(0, -1))).toBeNull();
-    expect(verify(payload, '')).toBeNull();
+    expect(verify('work', payload, signFor('outsider', 'work'))).toBeNull();
+    expect(verify('work', `${payload}x`, signFor('letmoe-secret', 'work'))).toBeNull();
+    expect(verify('work', payload, signFor('letmoe-secret', 'work').slice(0, -1))).toBeNull();
+    expect(verify('work', payload, '')).toBeNull();
+  });
+
+  it('does not let a card URL be replayed against another template', () => {
+    const sig = signFor('letmoe-secret', 'work');
+    for (const other of ['patch', 'topic', 'person', 'character', 'label', 'site'])
+      expect(verify(other, payload, sig), other).toBeNull();
+  });
+
+  it('cannot be confused by a template name that eats part of the payload', () => {
+    // `\n` never occurs in base64url, so no (template, payload) pair can produce another's message.
+    expect(signedMessage('work', payload)).not.toBe(signedMessage(`work\n${payload}`, ''));
+    expect(verify('work', payload, signFor('letmoe-secret', 'wor', `k\n${payload}`))).toBeNull();
   });
 });
 

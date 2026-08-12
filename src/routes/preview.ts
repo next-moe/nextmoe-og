@@ -1,9 +1,8 @@
 import { Hono } from 'hono';
-import { config } from '../config';
 import { log } from '../log';
 import { renderService } from '../render/renderer';
 import { allTemplates, getTemplate } from '../templates';
-import { escapeHtml, palette } from '../templates/layout';
+import { OG_BRAND, escapeHtml, palette } from '../templates/layout';
 
 export const previewRoutes = new Hono();
 
@@ -17,7 +16,7 @@ const page = (): string => {
 <html lang="zh">
 <head>
 <meta charset="utf-8" />
-<title>${escapeHtml(config.OG_BRAND)} OG preview</title>
+<title>${escapeHtml(OG_BRAND)} OG preview</title>
 <style>
   body { margin:0; background:${palette.bg}; color:${palette.fg};
          font-family: ui-sans-serif, system-ui, "Noto Sans SC", sans-serif; }

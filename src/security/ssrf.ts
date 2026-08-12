@@ -11,19 +11,6 @@ export class SsrfError extends Error {
 
 const ALLOWED_PROTOCOLS = new Set(['http:', 'https:']);
 
-/** ipaddr.js range labels that are not publicly routable. */
-const BLOCKED_RANGES = new Set([
-  'unspecified',
-  'broadcast',
-  'multicast',
-  'linkLocal',
-  'loopback',
-  'private',
-  'uniqueLocal',
-  'carrierGradeNat',
-  'reserved',
-]);
-
 export const isPrivateIp = (ip: string): boolean => {
   let addr: ReturnType<typeof ipaddr.parse>;
   try {
@@ -36,7 +23,32 @@ export const isPrivateIp = (ip: string): boolean => {
     const v6 = addr as ipaddr.IPv6;
     if (v6.isIPv4MappedAddress()) return isPrivateIp(v6.toIPv4Address().toString());
   }
-  return BLOCKED_RANGES.has(addr.range());
+  // Allowlist, not blocklist: 'unicast' is ipaddr.js's label for publicly routable, and every
+  // other label (6to4, teredo, rfc6052, deprecated site-local…) is a way back into the network.
+  return addr.range() !== 'unicast';
+};
+
+/**
+ * dns.lookup carries no timeout of its own and runs on the libuv threadpool, so a stalling
+ * resolver would hold a render slot for the OS resolver's full retry budget.
+ */
+const lookupWithTimeout = async (hostname: string): Promise<{ address: string }[]> => {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      dns.lookup(hostname, { all: true }),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new SsrfError('dns lookup timed out')),
+          config.DNS_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  } catch (e) {
+    throw e instanceof SsrfError ? e : new SsrfError('dns lookup failed');
+  } finally {
+    clearTimeout(timer);
+  }
 };
 
 /**
@@ -67,12 +79,7 @@ export const assertUrlAllowed = async (rawUrl: string): Promise<URL> => {
     return url;
   }
 
-  let records: { address: string }[];
-  try {
-    records = await dns.lookup(hostname, { all: true });
-  } catch {
-    throw new SsrfError('dns lookup failed');
-  }
+  const records = await lookupWithTimeout(hostname);
   if (records.length === 0) throw new SsrfError('dns returned no records');
   for (const record of records) {
     if (isPrivateIp(record.address)) throw new SsrfError('private address');

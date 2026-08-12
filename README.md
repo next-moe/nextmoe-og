@@ -67,7 +67,28 @@ curl -X POST -H 'authorization: Bearer devsecret' -H 'content-type: application/
   http://127.0.0.1:3300/v1/og/work -o card.webp
 ```
 
-`GET /health` 报渲染器、Redis、队列深度与在飞数。
+`GET /health` 报渲染器、Redis、队列深度与在飞数。Redis 挂了不算不健康(磁盘层照样服务),`OG_SITE_KEYS` 为空才算。
+
+## URL 契约(下游按这个写 buildOgUrl)
+
+```
+GET /v1/og/<template>?d=<base64url(JSON.stringify(fields))>&sig=<HMAC-SHA256>
+```
+
+签名覆盖的是 **`<template>` + `\n` + `d` 这一整串**,不是 `d` 本身——只签 `d` 的话,抓到任意一张卡的 URL 就能把路径换成别的模板照样出图(未知字段会被 zod 丢掉,所以 payload 通常仍然合法)。`\n` 不可能出现在 base64url 里,拼接无歧义。
+
+```ts
+const d = Buffer.from(JSON.stringify(fields), 'utf8').toString('base64url');
+const sig = createHmac('sha256', SITE_SECRET).update(`${template}\n${d}`).digest('base64url');
+const url = `https://og.nextmoe.dev/v1/og/${template}?d=${d}&sig=${sig}`;
+```
+
+`d` 逐字节参与缓存键,所以字段顺序变了就是另一条 URL、另一张图。**改签名格式会让所有已发出去的 URL 一起失效**,而这里没有失效协议(改数据 = 改 URL),所以格式在下游接入前定死。
+
+两条给接入方的硬要求:
+
+- **只签自己 CDN 白名单内的图片 URL。** `cover` / `avatar` 由调用方给,给什么就拉什么;把终端用户填的地址直接签进去,等于把 SSRF 面开放给用户。
+- **会火的页面走 POST 预热。** `RENDER_CONCURRENCY` 只有 4,冷启动时突发同 payload 会撞 429。
 
 ## 模板与预览页
 

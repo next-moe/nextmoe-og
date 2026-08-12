@@ -12,7 +12,6 @@
     "dev": "node --env-file-if-exists=.env --import tsx --watch src/server.ts",
     "start": "node --env-file-if-exists=.env --import tsx src/server.ts",
     "fonts": "tsx scripts/download-fonts.ts",
-    "bench": "tsx scripts/m0-bench.ts",
     "sign": "tsx scripts/sign-url.ts",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",

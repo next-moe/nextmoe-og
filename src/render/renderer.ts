@@ -17,6 +17,8 @@ export interface RenderResult {
   body: Buffer;
   contentType: string;
   format: 'webp' | 'png';
+  /** At least one cover the template asked for never arrived; the card fell back to a lettermark. */
+  degraded: boolean;
 }
 
 class RenderService {
@@ -72,7 +74,8 @@ class RenderService {
   private run = async <F>(template: Template<F>, fields: F): Promise<RenderResult> => {
     const started = performance.now();
     const renderer = await this.getRenderer();
-    const images = await loadImages(template.images(fields));
+    const wanted = [...new Set(template.images(fields))];
+    const images = await loadImages(wanted);
     const loaded = new Set(images.map((i) => i.src));
     const html = template.html(fields, loaded);
     const format = config.RENDER_FORMAT;
@@ -100,12 +103,22 @@ class RenderService {
       body: Buffer.from(body),
       contentType: format === 'webp' ? 'image/webp' : 'image/png',
       format,
+      degraded: images.length < wanted.length,
     };
   };
 
-  shutdown = (): void => {
-    this.queue.pause();
-    this.queue.clear();
+  /** Let what is already accepted finish. Clearing the queue would hang those callers instead. */
+  drain = async (ms: number): Promise<void> => {
+    if (this.queueDepth === 0) return;
+    log.info({ depth: this.queueDepth }, 'draining render queue');
+    let timer: NodeJS.Timeout | undefined;
+    await Promise.race([
+      this.queue.onIdle(),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, ms);
+      }),
+    ]);
+    clearTimeout(timer);
   };
 }
 

@@ -25,6 +25,16 @@ describe('isPrivateIp', () => {
       expect(isPrivateIp(ip), ip).toBe(true);
   });
 
+  it('flags the ipv6 tunnelling ranges that route back into the network', () => {
+    for (const ip of [
+      '2002:7f00:1::', // 6to4 wrapping 127.0.0.1
+      '2001:0:0:0:0:0:0:1', // teredo
+      '64:ff9b::a00:1', // NAT64 wrapping 10.0.0.1
+      'fec0::1', // deprecated site-local
+    ])
+      expect(isPrivateIp(ip), ip).toBe(true);
+  });
+
   it('passes public addresses', () => {
     expect(isPrivateIp('1.1.1.1')).toBe(false);
     expect(isPrivateIp('2606:4700:4700::1111')).toBe(false);

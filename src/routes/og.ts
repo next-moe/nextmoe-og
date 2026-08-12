@@ -15,17 +15,25 @@ export const ogRoutes = new Hono();
 
 const IMMUTABLE = 'public, max-age=31536000, immutable';
 
+/**
+ * A card drawn with a cover that failed to fetch must not be pinned for a year: the URL is
+ * immutable by construction, so a 30-second CDN blip would otherwise freeze the lettermark
+ * fallback forever. Degraded renders are also kept out of the cache.
+ */
+const DEGRADED = 'public, max-age=300';
+
 const sendImage = (
   c: Context,
   body: Buffer,
   contentType: string,
   key: string,
   state: 'HIT' | 'MISS',
+  cacheControl: string,
 ) =>
   c.body(new Uint8Array(body), 200, {
     'Content-Type': contentType,
     'Content-Length': String(body.byteLength),
-    'Cache-Control': IMMUTABLE,
+    'Cache-Control': cacheControl,
     ETag: `"${key}"`,
     'X-Cache': state,
   });
@@ -41,20 +49,22 @@ const produce = async (c: Context, templateName: string, payload: string, fields
   const key = cacheKey(templateName, payload, ext);
   const contentType = ext === 'webp' ? 'image/webp' : 'image/png';
 
-  const hit = await cache.get(key, ext, contentType).catch(() => null);
-  if (hit) return sendImage(c, hit.body, hit.contentType, key, 'HIT');
+  const hit = await cache.get(key, ext).catch(() => null);
+  if (hit) return sendImage(c, hit, contentType, key, 'HIT', IMMUTABLE);
 
   try {
     const result = await singleFlight(key, async () => {
-      const again = await cache.get(key, ext, contentType).catch(() => null);
-      if (again) return again;
+      const again = await cache.get(key, ext).catch(() => null);
+      if (again) return { body: again, degraded: false };
       const drawn = await renderService.draw(template, parsed.data as never);
-      await cache
-        .set(key, drawn.format, drawn.contentType, drawn.body)
-        .catch((e: Error) => log.warn({ err: e.message, key }, 'cache write failed'));
-      return { body: drawn.body, contentType: drawn.contentType };
+      if (!drawn.degraded)
+        await cache
+          .set(key, drawn.format, drawn.body)
+          .catch((e: Error) => log.warn({ err: e.message, key }, 'cache write failed'));
+      return { body: drawn.body, degraded: drawn.degraded };
     });
-    return sendImage(c, result.body, result.contentType, key, 'MISS');
+    const policy = result.degraded ? DEGRADED : IMMUTABLE;
+    return sendImage(c, result.body, contentType, key, 'MISS', policy);
   } catch (e) {
     if (e instanceof QueueFullError) return c.json({ error: 'busy' }, 429, { 'Retry-After': '2' });
     log.error({ err: (e as Error).message, template: templateName }, 'render failed');
@@ -64,12 +74,13 @@ const produce = async (c: Context, templateName: string, payload: string, fields
 
 ogRoutes.get('/:template', async (c) => {
   if (config.siteKeys.size === 0) return c.json({ error: 'service_unconfigured' }, 503);
+  const template = c.req.param('template');
   const d = c.req.query('d') ?? '';
   const sig = c.req.query('sig') ?? '';
   const decoded = decodePayload(d);
   if (!decoded) return c.json({ error: 'invalid_params' }, 400);
-  if (!sig || !verify(d, sig)) return c.json({ error: 'bad_signature' }, 403);
-  return produce(c, c.req.param('template'), decoded.canonical, decoded.fields);
+  if (!sig || !verify(template, d, sig)) return c.json({ error: 'bad_signature' }, 403);
+  return produce(c, template, decoded.canonical, decoded.fields);
 });
 
 /**

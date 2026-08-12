@@ -7,7 +7,6 @@ const EnvSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3300),
 
   OG_SITE_KEYS: z.string().default(''),
-  OG_BRAND: z.string().default('NextMoe·未萌'),
 
   FONT_DIR: z.string().default('assets/fonts'),
 
@@ -23,6 +22,7 @@ const EnvSchema = z.object({
   RENDER_QUALITY: z.coerce.number().int().min(1).max(100).default(88),
 
   IMAGE_FETCH_TIMEOUT_MS: z.coerce.number().int().positive().default(3_000),
+  DNS_TIMEOUT_MS: z.coerce.number().int().positive().default(2_000),
   IMAGE_MAX_BYTES: z.coerce
     .number()
     .int()
@@ -36,16 +36,22 @@ const EnvSchema = z.object({
 
 const parsed = EnvSchema.parse(process.env);
 
-const parseSiteKeys = (raw: string): Map<string, string> => {
+/**
+ * Loud on malformed input: a silently dropped entry means one site 403s on every card while
+ * /health still reports ok. Secrets therefore cannot contain a comma (`openssl rand -base64`
+ * never emits one).
+ */
+export const parseSiteKeys = (raw: string): Map<string, string> => {
   const out = new Map<string, string>();
   for (const entry of raw.split(',')) {
     const trimmed = entry.trim();
     if (!trimmed) continue;
     const at = trimmed.indexOf(':');
-    if (at <= 0) continue;
-    const site = trimmed.slice(0, at).trim();
-    const secret = trimmed.slice(at + 1).trim();
-    if (site && secret) out.set(site, secret);
+    const site = at > 0 ? trimmed.slice(0, at).trim() : '';
+    const secret = at > 0 ? trimmed.slice(at + 1).trim() : '';
+    if (!site || !secret) throw new Error(`OG_SITE_KEYS: expected site:secret, got "${trimmed}"`);
+    if (out.has(site)) throw new Error(`OG_SITE_KEYS: duplicate site "${site}"`);
+    out.set(site, secret);
   }
   return out;
 };

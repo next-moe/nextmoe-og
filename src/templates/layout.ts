@@ -1,6 +1,10 @@
-import { config } from '../config';
-
 export const OG_SIZE = { width: 1200, height: 630 } as const;
+
+/**
+ * Iron rule: exact casing, U+00B7, no spaces, once per card. Deliberately not an env var —
+ * it names the ecosystem, so a deploy must not be able to change it.
+ */
+export const OG_BRAND = 'NextMoe·未萌';
 
 export const palette = {
   bg: '#0a0a0a',
@@ -79,7 +83,7 @@ export const metaBar = (parts: string[]): string =>
        .map((p) => escapeHtml(p))
        .join(`<div style="margin:0 14px">·</div>`)}
      <div style="flex:1"></div>
-     <div style="color:${palette.primary};font-weight:700;font-family:${fontStack.latin}">${escapeHtml(config.OG_BRAND)}</div>
+     <div style="color:${palette.primary};font-weight:700;font-family:${fontStack.latin}">${escapeHtml(OG_BRAND)}</div>
    </div>`;
 
 /** Left visual + right text column. The skeleton every entity template shares. */

@@ -25,7 +25,6 @@ services:
       PORT: '3300'
       # SECRET — set in the Dokploy Environment panel, never commit.
       OG_SITE_KEYS: ${OG_SITE_KEYS:?set OG_SITE_KEYS in the Dokploy Environment panel}
-      OG_BRAND: NextMoe·未萌
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       CACHE_DIR: /data/cache
       CACHE_MAX_MB: '5120'
