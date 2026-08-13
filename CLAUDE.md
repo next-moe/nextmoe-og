@@ -17,7 +17,6 @@
 5. Deliberately balance elegant modularity against necessary duplication — choose per case.
 6. After every change, watch for unintended side effects elsewhere.
 7. Always seek the most modern, elegant solution that fits the project's current state; don't let that pursuit make the code complex, and don't write over-defensive code.
-8. **Pushing and deploying are the user's decisions.** Commit locally; never push unless told to.
 
 ## Who designs the cards: downstream does
 
