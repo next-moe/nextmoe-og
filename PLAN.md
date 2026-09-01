@@ -10,7 +10,7 @@
 
 | 栈                      | 站点                                                                      |
 | ----------------------- | ------------------------------------------------------------------------- |
-| Nuxt4 SSR               | `kun-galgame-patch`、`kun-letmoe-community`、`kun-galgame-infra/apps/web` |
+| Nuxt4 SSR               | `kun-galgame-patch`、`kun-letmoe-community`、`nextmoe-infra/apps/web` |
 | Vue + Vite SPA(无 Nuxt) | `kun-galgame-forum/apps/web`                                              |
 
 其余站点一律**不在范围内**,也不为它们预留抽象。将来要加,那时再议。
