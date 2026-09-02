@@ -21,17 +21,22 @@ describe('decodePayload', () => {
 describe('cacheKey', () => {
   it('is stable for the same inputs and distinct across template, payload and format', () => {
     const d = encodePayload({ title: 'a' });
-    expect(cacheKey('work', d, 'webp')).toBe(cacheKey('work', d, 'webp'));
-    expect(cacheKey('work', d, 'webp')).not.toBe(cacheKey('patch', d, 'webp'));
-    expect(cacheKey('work', d, 'webp')).not.toBe(
-      cacheKey('work', encodePayload({ title: 'b' }), 'webp'),
+    expect(cacheKey('forum', 'work', d, 'webp')).toBe(cacheKey('forum', 'work', d, 'webp'));
+    expect(cacheKey('forum', 'work', d, 'webp')).not.toBe(cacheKey('forum', 'patch', d, 'webp'));
+    expect(cacheKey('forum', 'work', d, 'webp')).not.toBe(
+      cacheKey('forum', 'work', encodePayload({ title: 'b' }), 'webp'),
     );
-    expect(cacheKey('work', d, 'webp')).not.toBe(cacheKey('work', d, 'png'));
+    expect(cacheKey('forum', 'work', d, 'webp')).not.toBe(cacheKey('forum', 'work', d, 'png'));
+  });
+
+  it('separates two sites signing the same payload, because the wordmark differs', () => {
+    const d = encodePayload({ title: 'a' });
+    expect(cacheKey('forum', 'work', d, 'webp')).not.toBe(cacheKey('patch', 'work', d, 'webp'));
   });
 
   it('keys on the payload string, so field order changes the key (URLs are immutable by construction)', () => {
-    const a = cacheKey('work', encodePayload({ a: 1, b: 2 }), 'webp');
-    const b = cacheKey('work', encodePayload({ b: 2, a: 1 }), 'webp');
+    const a = cacheKey('forum', 'work', encodePayload({ a: 1, b: 2 }), 'webp');
+    const b = cacheKey('forum', 'work', encodePayload({ b: 2, a: 1 }), 'webp');
     expect(a).not.toBe(b);
   });
 });

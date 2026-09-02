@@ -6,12 +6,13 @@ import { cache } from '../cache/store';
 import { config } from '../config';
 import { decodePayload, encodePayload } from '../http/params';
 import { log } from '../log';
-import { bearerAuth } from '../middleware/auth';
+import { type SiteEnv, bearerAuth } from '../middleware/auth';
 import { QueueFullError, renderService } from '../render/renderer';
 import { verify } from '../security/signature';
 import { getTemplate } from '../templates';
+import { brandFor } from '../templates/layout';
 
-export const ogRoutes = new Hono();
+export const ogRoutes = new Hono<SiteEnv>();
 
 const IMMUTABLE = 'public, max-age=31536000, immutable';
 
@@ -38,7 +39,13 @@ const sendImage = (
     'X-Cache': state,
   });
 
-const produce = async (c: Context, templateName: string, payload: string, fields: unknown) => {
+const produce = async (
+  c: Context<SiteEnv>,
+  site: string,
+  templateName: string,
+  payload: string,
+  fields: unknown,
+) => {
   const template = getTemplate(templateName);
   if (!template) return c.json({ error: 'unknown_template' }, 404);
 
@@ -46,7 +53,7 @@ const produce = async (c: Context, templateName: string, payload: string, fields
   if (!parsed.success) return c.json({ error: 'invalid_fields', detail: parsed.error.issues }, 400);
 
   const ext = config.RENDER_FORMAT;
-  const key = cacheKey(templateName, payload, ext);
+  const key = cacheKey(site, templateName, payload, ext);
   const contentType = ext === 'webp' ? 'image/webp' : 'image/png';
 
   const hit = await cache.get(key, ext).catch(() => null);
@@ -56,7 +63,7 @@ const produce = async (c: Context, templateName: string, payload: string, fields
     const result = await singleFlight(key, async () => {
       const again = await cache.get(key, ext).catch(() => null);
       if (again) return { body: again, degraded: false };
-      const drawn = await renderService.draw(template, parsed.data as never);
+      const drawn = await renderService.draw(template, parsed.data as never, brandFor(site));
       if (!drawn.degraded)
         await cache
           .set(key, drawn.format, drawn.body)
@@ -79,8 +86,9 @@ ogRoutes.get('/:template', async (c) => {
   const sig = c.req.query('sig') ?? '';
   const decoded = decodePayload(d);
   if (!decoded) return c.json({ error: 'invalid_params' }, 400);
-  if (!sig || !verify(template, d, sig)) return c.json({ error: 'bad_signature' }, 403);
-  return produce(c, template, decoded.canonical, decoded.fields);
+  const site = sig ? verify(template, d, sig) : null;
+  if (!site) return c.json({ error: 'bad_signature' }, 403);
+  return produce(c, site, template, decoded.canonical, decoded.fields);
 });
 
 /**
@@ -93,7 +101,7 @@ ogRoutes.post('/:template', bearerAuth, async (c) => {
   if (typeof body.d === 'string') {
     const decoded = decodePayload(body.d);
     if (!decoded) return c.json({ error: 'invalid_params' }, 400);
-    return produce(c, c.req.param('template'), decoded.canonical, decoded.fields);
+    return produce(c, c.get('site'), c.req.param('template'), decoded.canonical, decoded.fields);
   }
-  return produce(c, c.req.param('template'), encodePayload(body), body);
+  return produce(c, c.get('site'), c.req.param('template'), encodePayload(body), body);
 });

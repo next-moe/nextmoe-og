@@ -64,20 +64,24 @@ class RenderService {
     return renderer;
   };
 
-  draw = async <F>(template: Template<F>, fields: F): Promise<RenderResult> => {
+  draw = async <F>(template: Template<F>, fields: F, brand: string): Promise<RenderResult> => {
     if (config.RENDER_QUEUE_MAX > 0 && this.queue.size >= config.RENDER_QUEUE_MAX)
       throw new QueueFullError();
-    const result = await this.queue.add(() => this.run(template, fields));
+    const result = await this.queue.add(() => this.run(template, fields, brand));
     return result as RenderResult;
   };
 
-  private run = async <F>(template: Template<F>, fields: F): Promise<RenderResult> => {
+  private run = async <F>(
+    template: Template<F>,
+    fields: F,
+    brand: string,
+  ): Promise<RenderResult> => {
     const started = performance.now();
     const renderer = await this.getRenderer();
     const wanted = [...new Set(template.images(fields))];
     const images = await loadImages(wanted);
     const loaded = new Set(images.map((i) => i.src));
-    const html = template.html(fields, loaded);
+    const html = template.html(fields, loaded, brand);
     const format = config.RENDER_FORMAT;
     const body = await render(html, {
       renderer,

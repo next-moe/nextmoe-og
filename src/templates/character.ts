@@ -1,13 +1,15 @@
 import { z } from 'zod';
 import {
-  OG_SIZE,
   badgeRow,
   clamp,
+  clampOne,
   escapeHtml,
+  field,
   fontStack,
   metaBar,
+  OG_SIZE,
   palette,
-  spacer,
+  SMALL_WEIGHT,
   splitCard,
   visualColumn,
 } from './layout';
@@ -29,25 +31,30 @@ export const character: Template<CharacterFields> = {
   size: OG_SIZE,
   schema: CharacterSchema,
   images: (f) => (f.portrait ? [f.portrait] : []),
-  html: (f, loaded) => {
+  html: (f, loaded, brand) => {
     const portrait = f.portrait && loaded.has(f.portrait) ? f.portrait : null;
     const body = `
       ${badgeRow(f.badges)}
-      <div style="font-size:60px;font-weight:700;line-height:1.2;font-family:${fontStack.jp};${clamp(2)}">${escapeHtml(f.name)}</div>
+      <div style="font-size:62px;font-weight:800;line-height:1.18;font-family:${fontStack.jp};${clamp(f.work ? 1 : 2)}">${escapeHtml(f.name)}</div>
       ${
         f.originalName
-          ? `<div style="margin-top:16px;font-size:30px;color:${palette.muted};${clamp(1)}">${escapeHtml(f.originalName)}</div>`
+          ? `<div style="margin-top:16px;font-size:30px;font-weight:${SMALL_WEIGHT};line-height:1.4;color:${palette.muted};${clampOne}">${escapeHtml(f.originalName)}</div>`
           : ''
       }
       ${
         f.work
-          ? `<div style="margin-top:28px;font-size:32px;color:${palette.fg};font-family:${fontStack.jp};${clamp(2)}">${escapeHtml(f.work)}</div>`
+          ? field(
+              '所属作品',
+              `<div style="font-size:31px;font-weight:${SMALL_WEIGHT};line-height:1.4;color:${palette.fg};font-family:${fontStack.jp};${clamp(2)}">${escapeHtml(f.work)}</div>`,
+            )
           : ''
       }
-      ${spacer}
-      ${metaBar([f.voice ?? ''])}
     `;
-    return splitCard(visualColumn(portrait, f.name.slice(0, 1), 440, 'contain'), body);
+    return splitCard(
+      visualColumn(portrait, f.name.slice(0, 1), 468, 'contain'),
+      body,
+      metaBar([f.voice ?? ''], brand),
+    );
   },
   sample: {
     name: '間宮 卓司',

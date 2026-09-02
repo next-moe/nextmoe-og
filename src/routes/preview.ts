@@ -98,7 +98,7 @@ previewRoutes.post('/render/:template', async (c) => {
   const parsed = template.schema.safeParse(body);
   if (!parsed.success) return c.text(JSON.stringify(parsed.error.issues, null, 2), 400);
   try {
-    const drawn = await renderService.draw(template, parsed.data as never);
+    const drawn = await renderService.draw(template, parsed.data as never, OG_BRAND);
     return c.body(new Uint8Array(drawn.body), 200, {
       'Content-Type': drawn.contentType,
       'Cache-Control': 'no-store',

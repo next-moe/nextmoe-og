@@ -1,13 +1,13 @@
 import { z } from 'zod';
 import {
-  OG_SIZE,
   badgeRow,
   clamp,
   escapeHtml,
   fontStack,
   metaBar,
+  OG_SIZE,
   palette,
-  spacer,
+  SMALL_WEIGHT,
   splitCard,
   visualColumn,
 } from './layout';
@@ -29,20 +29,22 @@ export const patch: Template<PatchFields> = {
   size: OG_SIZE,
   schema: PatchSchema,
   images: (f) => (f.cover ? [f.cover] : []),
-  html: (f, loaded) => {
+  html: (f, loaded, brand) => {
     const cover = f.cover && loaded.has(f.cover) ? f.cover : null;
     const body = `
       ${badgeRow(f.platforms)}
-      <div style="font-size:56px;font-weight:700;line-height:1.24;font-family:${fontStack.jp};${clamp(2)}">${escapeHtml(f.title)}</div>
+      <div style="font-size:56px;font-weight:800;line-height:1.2;font-family:${fontStack.jp};${clamp(2)}">${escapeHtml(f.title)}</div>
       ${
         f.originalName
-          ? `<div style="margin-top:16px;font-size:30px;color:${palette.muted};${clamp(2)}">${escapeHtml(f.originalName)}</div>`
+          ? `<div style="margin-top:16px;font-size:30px;font-weight:${SMALL_WEIGHT};line-height:1.4;color:${palette.muted};${clamp(2)}">${escapeHtml(f.originalName)}</div>`
           : ''
       }
-      ${spacer}
-      ${metaBar([f.language ?? '', f.size ?? ''])}
     `;
-    return splitCard(visualColumn(cover, f.title.slice(0, 1)), body);
+    return splitCard(
+      visualColumn(cover, f.title.slice(0, 1)),
+      body,
+      metaBar([f.language ?? '', f.size ?? ''], brand),
+    );
   },
   sample: {
     title: 'サクラノ詩 -櫻の森の上を舞う-',

@@ -1,13 +1,15 @@
 import { z } from 'zod';
 import {
-  OG_SIZE,
   badgeRow,
   clamp,
+  clampOne,
   escapeHtml,
+  field,
   fontStack,
   metaBar,
+  OG_SIZE,
   palette,
-  spacer,
+  SMALL_WEIGHT,
   splitCard,
   visualColumn,
 } from './layout';
@@ -28,30 +30,28 @@ export const person: Template<PersonFields> = {
   size: OG_SIZE,
   schema: PersonSchema,
   images: (f) => (f.photo ? [f.photo] : []),
-  html: (f, loaded) => {
+  html: (f, loaded, brand) => {
     const photo = f.photo && loaded.has(f.photo) ? f.photo : null;
     const works = f.works
       .map(
         (w) =>
-          `<div style="display:flex;flex-direction:row;align-items:center;margin-top:14px;font-size:28px;color:${palette.fg};font-family:${fontStack.jp}">
-             <div style="width:8px;height:8px;border-radius:9999px;background-color:${palette.primary};margin-right:16px"></div>
+          `<div style="display:flex;flex-direction:row;align-items:center;margin-top:9px;font-size:27px;font-weight:${SMALL_WEIGHT};line-height:1.3;color:${palette.fg};font-family:${fontStack.jp}">
+             <div style="width:9px;height:9px;border-radius:9999px;background-color:${palette.primary};margin-right:18px"></div>
              <div style="flex:1;${clamp(1)}">${escapeHtml(w)}</div>
            </div>`,
       )
       .join('');
     const body = `
       ${badgeRow(f.badges)}
-      <div style="font-size:60px;font-weight:700;line-height:1.2;font-family:${fontStack.jp};${clamp(2)}">${escapeHtml(f.name)}</div>
+      <div style="font-size:62px;font-weight:800;line-height:1.18;font-family:${fontStack.jp};${clamp(works ? 1 : 2)}">${escapeHtml(f.name)}</div>
       ${
         f.originalName
-          ? `<div style="margin-top:14px;font-size:30px;color:${palette.muted};${clamp(1)}">${escapeHtml(f.originalName)}</div>`
+          ? `<div style="margin-top:14px;font-size:30px;font-weight:${SMALL_WEIGHT};line-height:1.4;color:${palette.muted};${clampOne}">${escapeHtml(f.originalName)}</div>`
           : ''
       }
-      ${works ? `<div style="display:flex;flex-direction:column;margin-top:32px">${works}</div>` : ''}
-      ${spacer}
-      ${metaBar([])}
+      ${works ? field('代表作', `<div style="display:flex;flex-direction:column">${works}</div>`) : ''}
     `;
-    return splitCard(visualColumn(photo, f.name.slice(0, 1), 440), body);
+    return splitCard(visualColumn(photo, f.name.slice(0, 1)), body, metaBar([], brand));
   },
   sample: {
     name: 'すかぢ',

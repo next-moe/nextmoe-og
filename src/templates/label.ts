@@ -1,13 +1,15 @@
 import { z } from 'zod';
 import {
-  OG_SIZE,
   badgeRow,
   clamp,
+  clampOne,
   escapeHtml,
+  figure,
   fontStack,
   metaBar,
+  OG_SIZE,
   palette,
-  spacer,
+  SMALL_WEIGHT,
   splitCard,
   visualColumn,
 } from './layout';
@@ -29,28 +31,23 @@ export const label: Template<LabelFields> = {
   size: OG_SIZE,
   schema: LabelSchema,
   images: (f) => (f.logo ? [f.logo] : []),
-  html: (f, loaded) => {
+  html: (f, loaded, brand) => {
     const logo = f.logo && loaded.has(f.logo) ? f.logo : null;
     const body = `
       ${badgeRow(f.badges)}
-      <div style="font-size:64px;font-weight:700;line-height:1.2;font-family:${fontStack.jp};${clamp(2)}">${escapeHtml(f.name)}</div>
+      <div style="font-size:64px;font-weight:800;line-height:1.18;font-family:${fontStack.jp};${clamp(2)}">${escapeHtml(f.name)}</div>
       ${
         f.originalName
-          ? `<div style="margin-top:16px;font-size:30px;color:${palette.muted};${clamp(1)}">${escapeHtml(f.originalName)}</div>`
+          ? `<div style="margin-top:16px;font-size:30px;font-weight:${SMALL_WEIGHT};line-height:1.4;color:${palette.muted};${clampOne}">${escapeHtml(f.originalName)}</div>`
           : ''
       }
-      ${
-        f.workCount === undefined
-          ? ''
-          : `<div style="display:flex;flex-direction:row;align-items:flex-end;margin-top:36px">
-               <div style="font-size:72px;font-weight:700;color:${palette.primary};line-height:1">${f.workCount}</div>
-               <div style="font-size:28px;color:${palette.muted};margin-left:14px;margin-bottom:8px">部作品</div>
-             </div>`
-      }
-      ${spacer}
-      ${metaBar([f.founded ?? ''])}
+      ${f.workCount === undefined ? '' : figure(String(f.workCount), '部作品')}
     `;
-    return splitCard(visualColumn(logo, f.name.slice(0, 1), 440, 'contain'), body);
+    return splitCard(
+      visualColumn(logo, f.name.slice(0, 1), 468, 'contain'),
+      body,
+      metaBar([f.founded ?? ''], brand),
+    );
   },
   sample: {
     name: 'ケロQ',

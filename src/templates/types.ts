@@ -6,16 +6,16 @@ export interface TemplateSize {
 }
 
 /**
- * A template is a pure function of its fields plus the set of remote images whose
- * bytes actually arrived. `images` declares what to pre-fetch; `html` must render
- * something sensible when a declared URL is missing from `loaded`.
+ * A template is a pure function of its fields, the set of remote images whose bytes actually
+ * arrived, and the wordmark of the site that signed the request. `images` declares what to
+ * pre-fetch; `html` must render something sensible when a declared URL is missing from `loaded`.
  */
 export interface Template<F> {
   name: string;
   size: TemplateSize;
   schema: ZodType<F>;
   images: (fields: F) => string[];
-  html: (fields: F, loaded: ReadonlySet<string>) => string;
+  html: (fields: F, loaded: ReadonlySet<string>, brand: string) => string;
   /** Fills the preview form and documents the field shape for the consuming site. */
   sample: F;
 }
