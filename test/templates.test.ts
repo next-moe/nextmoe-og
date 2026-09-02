@@ -64,6 +64,14 @@ describe.each(branded.map((t) => [t.name, t] as const))('%s', (_name, t) => {
   });
 });
 
+describe('work', () => {
+  it('prints the rating count, not a bare unit', () => {
+    const t = getTemplate('work')!;
+    const html = draw(t, t.sample, t.images(t.sample as never), SENTINEL);
+    expect(html).toContain('148 人');
+  });
+});
+
 describe('site', () => {
   it('is the one card with a gradient ground and no wordmark', () => {
     const t = getTemplate('site')!;

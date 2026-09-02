@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
   badgeRow,
   clamp,
+  compactCount,
   escapeHtml,
   figure,
   fontStack,
@@ -42,7 +43,7 @@ export const work: Template<WorkFields> = {
           ? `<div style="margin-top:16px;font-size:29px;font-weight:${SMALL_WEIGHT};line-height:1.4;color:${palette.muted};font-family:${fontStack.jp};${clamp(f.rating === undefined ? 2 : 1)}">${escapeHtml(f.originalName)}</div>`
           : ''
       }
-      ${f.rating === undefined ? '' : figure(f.rating.toFixed(1), '评分', f.ratingCount === undefined ? undefined : ` 人`)}
+      ${f.rating === undefined ? '' : figure(f.rating.toFixed(1), '评分', f.ratingCount === undefined ? undefined : `${compactCount(f.ratingCount)} 人`)}
     `;
     return splitCard(
       visualColumn(cover, f.title.slice(0, 1)),
