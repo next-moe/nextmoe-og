@@ -1,6 +1,6 @@
 # Plain Node — the whole point of takumi is that there is no browser to bake in.
 # Debian (not alpine) because @takumi-rs/core ships glibc prebuilds.
-FROM node:22-bookworm-slim
+FROM node:24.22.1-bookworm-slim
 
 ENV NODE_ENV=production \
     CACHE_DIR=/data/cache \

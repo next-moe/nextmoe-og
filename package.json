@@ -6,7 +6,7 @@
   "description": "NextMoe unified Open Graph image renderer — takumi (Rust), no headless browser, cache-first.",
   "packageManager": "pnpm@11.17.0",
   "engines": {
-    "node": ">=20"
+    "node": ">=24.22.1"
   },
   "scripts": {
     "dev": "node --env-file-if-exists=.env --import tsx --watch src/server.ts",
