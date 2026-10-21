@@ -18,7 +18,7 @@ services:
     # CI rewrites this tag to the immutable :<git-sha> on every build (the `bump` job in
     # .github/workflows/build.yml). Dokploy runs `up -d` without a forced pull, so a moving
     # :latest that already exists locally is never re-pulled. Don't hand-edit the tag.
-    image: ghcr.io/next-moe/nextmoe-og:c8d9621d33d6b093de29f6453e6c2cc95ac5762a
+    image: ghcr.io/next-moe/nextmoe-og:2ae2a54939ed451c768e2d3e68f8c64414df2f28
     environment:
       NODE_ENV: production
       LOG_LEVEL: info
